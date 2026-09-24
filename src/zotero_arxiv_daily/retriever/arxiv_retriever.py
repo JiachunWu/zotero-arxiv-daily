@@ -114,7 +114,10 @@ class ArxivRetriever(BaseRetriever):
             raise ValueError("category must be specified for arxiv.")
 
     def _retrieve_raw_papers(self) -> list[ArxivResult]:
-        client = arxiv.Client(num_retries=10, delay_seconds=10)
+        # Retry rate limits explicitly below.  The arxiv client retries every
+        # HTTP error, including non-retryable 406 responses, which makes a
+        # single bad paper delay the whole workflow by minutes.
+        client = arxiv.Client(num_retries=0, delay_seconds=10)
         query = '+'.join(self.config.source.arxiv.category)
         include_cross_list = self.config.source.arxiv.get("include_cross_list", False)
         # Get the latest paper from arxiv rss feed
