@@ -62,7 +62,11 @@ def extract_text_from_pdf(paper: ArxivResult) -> str | None:
         if paper.pdf_url is None:
             logger.warning(f"No PDF URL available for {paper.title}")
             return None
-        urlretrieve(paper.pdf_url, path)
+        try:
+            urlretrieve(paper.pdf_url, path)
+        except Exception as e:
+            logger.warning(f"Failed to download pdf of {paper.title}: {e}")
+            return None
         try:
             full_text = extract_markdown_from_pdf(path)
         except Exception as e:
@@ -77,7 +81,11 @@ def extract_text_from_tar(paper: ArxivResult) -> str | None:
         if source_url is None:
             logger.warning(f"No source URL available for {paper.title}")
             return None
-        urlretrieve(source_url, path)
+        try:
+            urlretrieve(source_url, path)
+        except Exception as e:
+            logger.warning(f"Failed to download source tarball of {paper.title}: {e}")
+            return None
         try:
             file_contents = extract_tex_code_from_tar(path, paper.entry_id)
             if "all" not in file_contents:
