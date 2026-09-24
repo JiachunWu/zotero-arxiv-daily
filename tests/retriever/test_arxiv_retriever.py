@@ -88,3 +88,64 @@ def test_run_with_hard_timeout_returns_none_on_failure(monkeypatch):
     )
     assert result is None
     assert "boom" in warnings[0]
+
+
+def test_arxiv_retriever_falls_back_to_per_paper_on_batch_http_error(
+    config, mock_feedparser, monkeypatch
+):
+    monkeypatch.setattr("zotero_arxiv_daily.retriever.base.sleep", lambda _: None)
+
+    new_entries = [
+        entry
+        for entry in mock_feedparser.entries
+        if entry.get("arxiv_announce_type", "new") == "new"
+    ]
+    fake_results_by_id = {}
+    for entry in new_entries:
+        paper_id = entry.id.removeprefix("oai:arXiv.org:")
+        fake_results_by_id[paper_id] = SimpleNamespace(
+            title=entry.title,
+            authors=[SimpleNamespace(name="Test Author")],
+            summary="Test abstract",
+            pdf_url=f"https://arxiv.org/pdf/{paper_id}",
+            entry_id=f"https://arxiv.org/abs/{paper_id}",
+            source_url=(
+                lambda paper_id=paper_id: f"https://arxiv.org/e-print/{paper_id}"
+            ),
+        )
+
+    skipped_paper_id = next(iter(fake_results_by_id))
+    warnings: list[str] = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def results(self, search):
+            paper_ids = list(search.id_list)
+            if len(paper_ids) > 1:
+                raise arxiv_retriever.arxiv.HTTPError(
+                    "https://export.arxiv.org/api/query", 0, 406
+                )
+            paper_id = paper_ids[0]
+            if paper_id == skipped_paper_id:
+                raise arxiv_retriever.arxiv.HTTPError(
+                    "https://export.arxiv.org/api/query", 0, 406
+                )
+            return iter([fake_results_by_id[paper_id]])
+
+    monkeypatch.setattr(arxiv_retriever.arxiv, "Client", FakeClient)
+    monkeypatch.setattr(arxiv_retriever, "logger", SimpleNamespace(warning=warnings.append))
+    monkeypatch.setattr(arxiv_retriever, "extract_text_from_html", lambda paper: None)
+    monkeypatch.setattr(arxiv_retriever, "extract_text_from_pdf", lambda paper: None)
+    monkeypatch.setattr(arxiv_retriever, "extract_text_from_tar", lambda paper: None)
+
+    papers = ArxivRetriever(config).retrieve_papers()
+
+    assert len(papers) == len(new_entries) - 1
+    retrieved_paper_ids = {
+        paper.url.removeprefix("https://arxiv.org/abs/") for paper in papers
+    }
+    assert skipped_paper_id not in retrieved_paper_ids
+    assert any("Falling back to per-paper requests" in warning for warning in warnings)
+    assert any(f"Skipping arXiv paper {skipped_paper_id}" in warning for warning in warnings)
