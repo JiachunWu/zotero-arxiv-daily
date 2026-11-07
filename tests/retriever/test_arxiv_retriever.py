@@ -251,4 +251,3 @@ def test_retrieve_raw_papers_retries_on_http_failure(config, mock_feedparser, mo
     raw = retriever._retrieve_raw_papers()
     assert len(calls) == 2
     assert len(raw) > 0
-
