@@ -2,7 +2,7 @@ zotero:
   user_id: ??? # User ID of your Zotero account.
   api_key: ??? # An Zotero API key with read access.
   include_path: null # A list of glob patterns marking the Zotero collections that should be included. Example: ["2026/survey/**","2026/reading-group/**"]
-  ignore_path: null # A list of glob patterns marking the Zotero collections that should be excluded. Example: ["2026/ignore/**","archive/**"]
+  ignore_path: ["组内论文", "组内论文/**"] # Exclude this Zotero collection and all its subcollections.
 
 source:
   arxiv:
