@@ -2,8 +2,8 @@ name: Send emails daily
 on:
   workflow_dispatch:
   schedule:
-    # 06:17 Asia/Shanghai; avoid the busiest top-of-hour schedule.
-    - cron: '17 22 * * *'
+    # 06:37 Asia/Shanghai; avoid the busiest top-of-hour schedule.
+    - cron: '37 22 * * *'
 
 jobs:
   calculate-and-send:
